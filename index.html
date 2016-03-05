@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Websocket Game</title>
+    <style>
+      #canvas {
+        border: 1px solid lightgray;
+        display: block;
+        margin: 0 auto;
+      }
+    </style>
+</head>
+<body>
+<canvas id="canvas" width="640" height="480"></canvas>
+<script>
+    var ws = new WebSocket("ws://localhost:8000/game");
+    var name = window.prompt();
+    var worldState = null;
+    var toSend = {
+        "action": null,
+        "name": null,
+        "pos": null,
+    }
+
+    ws.onopen = function() {
+        toSend.action = "init";
+        toSend.name = name;
+        ws.send(JSON.stringify(toSend));
+        draw();
+    };
+    window.onbeforeunload = function(e) {
+        toSend.action = "destroy";
+        toSend.name = name;
+        ws.send(JSON.stringify(toSend));
+    };
+    ws.onclose = function() {
+        ws.close();
+    };
+    ws.onmessage = function(e) {
+        worldState = JSON.parse(e.data);
+    };
+
+    // Canvas part
+    var canvas = document.getElementById('canvas');
+    var ctx = canvas.getContext('2d');
+    var raf;
+
+    var player = {
+      x: 100,
+      y: 100,
+      speed: 5,
+      radius: 10,
+      color: getRandomColor(),
+      draw: function(){
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2, false);
+        ctx.closePath();
+        ctx.fillStyle = this.color;
+        ctx.fill();
+      }
+    };
+
+    // Handle keyboard inputs
+    var keysDown = {};
+    addEventListener('keydown', function(e){
+      keysDown[e.keyCode] = true;
+    }, false);
+    addEventListener('keyup', function(e){
+      delete keysDown[e.keyCode];
+    }, false);
+
+    var update = function(modifier){
+      if (38 in keysDown) { // Player holding up
+		    player.y -= player.speed * modifier;
+    	}
+    	if (40 in keysDown) { // Player holding down
+    		player.y += player.speed * modifier;
+    	}
+    	if (37 in keysDown) { // Player holding left
+    		player.x -= player.speed * modifier;
+    	}
+    	if (39 in keysDown) { // Player holding right
+    		player.x += player.speed * modifier;
+    	}
+
+      toSend.action = "move";
+      toSend.name = name;
+      toSend.pos = [player.x, player.y];
+      ws.send(JSON.stringify(toSend));
+    }
+
+    function clear(){
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
+    var drawPlayer = function(x, y){
+      ctx.beginPath();
+      ctx.arc(x, y, 10, 0, Math.PI * 2, false);
+      ctx.closePath();
+      ctx.fillStyle = 'lightgreen';
+      ctx.fill();
+    }
+
+    function draw(){
+      clear();
+      update(1);
+      for (plr in worldState){
+        drawPlayer(worldState[plr][0], worldState[plr][1]);
+      }
+      raf = window.requestAnimationFrame(draw);
+    };
+
+    function getRandomColor(){
+      var rgb = [];
+      var min = 0;
+      var max = 255;
+      for (var i=0; i<3; i++){
+        var randInt = Math.round(Math.random() * (max - min) + min);
+        rgb.push(randInt);
+      }
+      return 'rgb(' + rgb.join() + ')';
+    };
+</script>
+</body>
+</html>
