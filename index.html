@@ -14,7 +14,8 @@
 <body>
 <canvas id="canvas" width="640" height="480"></canvas>
 <script>
-    var ws = new WebSocket("ws://localhost:8000/game");
+    url = "ws://" + location.host + "/game";
+    var ws = new WebSocket(url);
     var name = window.prompt();
     var worldState = null;
     var toSend = {
